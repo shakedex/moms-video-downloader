@@ -1,10 +1,21 @@
 import { api, type SetupProgress } from "../api";
 import { t } from "../strings/t";
 import { show } from "../main";
+import { icon } from "../icons";
+
+const logoUrl = new URL("../logo.png", import.meta.url).href;
 
 export function setupScreen(): HTMLElement {
   const el = document.createElement("div");
-  el.className = "screen";
+  el.className = "setup";
+
+  const card = document.createElement("div");
+  card.className = "setup-card";
+
+  const logo = document.createElement("img");
+  logo.className = "setup-logo";
+  logo.src = logoUrl;
+  logo.alt = "";
 
   const title = document.createElement("h1");
   title.textContent = t("setup_title");
@@ -14,7 +25,12 @@ export function setupScreen(): HTMLElement {
   sub.textContent = t("setup_subtitle");
 
   const step = document.createElement("div");
-  step.className = "status";
+  step.className = "setup-step";
+  const stepLabel = document.createElement("span");
+  const stepPct = document.createElement("span");
+  stepPct.className = "num";
+  stepPct.dir = "ltr";
+  step.append(stepLabel, stepPct);
 
   const progress = document.createElement("div");
   progress.className = "progress indeterminate";
@@ -23,34 +39,41 @@ export function setupScreen(): HTMLElement {
   progress.append(bar);
 
   const error = document.createElement("div");
-  error.className = "error";
+  error.className = "error-line";
   error.hidden = true;
 
   const retry = document.createElement("button");
-  retry.className = "btn";
-  retry.textContent = t("setup_retry");
+  retry.className = "btn btn-primary";
+  retry.append(icon("retry", 28), document.createTextNode(t("setup_retry")));
   retry.hidden = true;
 
-  el.append(title, sub, step, progress, error, retry);
+  card.append(logo, title, sub, step, progress, error, retry);
+  el.append(card);
 
   let unlisten: (() => void) | null = null;
 
   function onProgress(p: SetupProgress) {
-    step.textContent = p.step === "ytdlp" ? t("setup_step_ytdlp") : t("setup_step_ffmpeg");
+    stepLabel.textContent = p.step === "ytdlp" ? t("setup_step_ytdlp") : t("setup_step_ffmpeg");
     if (p.total > 0) {
+      const pct = Math.min(100, (p.downloaded / p.total) * 100);
       progress.classList.remove("indeterminate");
-      bar.style.width = `${Math.min(100, (p.downloaded / p.total) * 100)}%`;
+      bar.style.width = `${pct}%`;
+      stepPct.textContent = `${Math.round(pct)}%`;
     } else {
       progress.classList.add("indeterminate");
+      stepPct.textContent = "";
     }
   }
 
   async function run() {
     error.hidden = true;
     retry.hidden = true;
+    progress.hidden = false;
+    step.hidden = false;
     progress.classList.add("indeterminate");
     bar.style.width = "0%";
-    step.textContent = t("setup_step_ytdlp");
+    stepLabel.textContent = t("setup_step_ytdlp");
+    stepPct.textContent = "";
     if (!unlisten) {
       unlisten = await api.onSetupProgress(onProgress);
     }
@@ -60,6 +83,8 @@ export function setupScreen(): HTMLElement {
       const { mainScreen } = await import("./main");
       show(mainScreen());
     } catch {
+      progress.hidden = true;
+      step.hidden = true;
       error.textContent = t("setup_failed");
       error.hidden = false;
       retry.hidden = false;

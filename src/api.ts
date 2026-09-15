@@ -29,7 +29,7 @@ export const api = {
   enqueue: (url: string, mode: Mode) => invoke<number>("enqueue_download", { url, mode }),
   cancel: (id: number) => invoke<void>("cancel_download", { id }),
   cancelAll: () => invoke<void>("cancel_all"),
-  reveal: (path: string) => invoke<void>("reveal_in_explorer", { path }),
+  reveal: (path: string, folder: string) => invoke<void>("reveal_in_explorer", { path, folder }),
   openFolder: (path: string) => invoke<void>("open_folder", { path }),
 
   readClipboard: () => invoke<string | null>("read_clipboard"),

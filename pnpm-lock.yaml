@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@fontsource/assistant':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@tauri-apps/api':
         specifier: ^2
         version: 2.11.1
@@ -17,6 +20,9 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.5
+      lucide:
+        specifier: ^1.46.0
+        version: 1.46.0
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2
@@ -29,6 +35,9 @@ importers:
         version: 8.3.0
 
 packages:
+
+  '@fontsource/assistant@5.3.0':
+    resolution: {integrity: sha512-FJ0gSxkCdNeZgd2yIGmIkjU5SZOpDYs0j5IEWMQPBT5bRuvDqLA4T03KwmvMgWvov966coRVp0dcdd+oAo/MrA==}
 
   '@oxc-project/types@0.149.0':
     resolution: {integrity: sha512-Efcc+iF0j3Bf67YjEqIqWXbX5XddXoK/Mw4K1/JuXwRCZ8N16VR7iT23nlCc9XrveFVh/E5Rqs2StT0V8v9LdA==}
@@ -309,6 +318,9 @@ packages:
     resolution: {integrity: sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==}
     engines: {node: '>= 12.0.0'}
 
+  lucide@1.46.0:
+    resolution: {integrity: sha512-JAkmhp9rxxIAeyKZJPUdiDDz8szXEISxdd4elBp7nu75MWQIYQQ8p1u+conDwu7RG2TrESj3wo5G0dKNs/5ryA==}
+
   nanoid@3.3.19:
     resolution: {integrity: sha512-Y2tUNy4ouw6tq5oDSKeQYGOyhkUBhNOcGV/02KC+6kd9eDGqdZd++mjMiIDilrBYvjEnCYvVtsuHCuP+okSfug==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -387,6 +399,8 @@ packages:
         optional: true
 
 snapshots:
+
+  '@fontsource/assistant@5.3.0': {}
 
   '@oxc-project/types@0.149.0': {}
 
@@ -551,6 +565,8 @@ snapshots:
       lightningcss-linux-x64-musl: 1.33.0
       lightningcss-win32-arm64-msvc: 1.33.0
       lightningcss-win32-x64-msvc: 1.33.0
+
+  lucide@1.46.0: {}
 
   nanoid@3.3.19: {}
 

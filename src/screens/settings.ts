@@ -2,50 +2,60 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { api, type Settings } from "../api";
 import { t, errorKey } from "../strings/t";
 import { show } from "../main";
+import { icon } from "../icons";
 
 export function settingsScreen(): HTMLElement {
   const el = document.createElement("div");
   el.className = "screen";
 
+  // Header: title on the right, back on the left (RTL flow).
   const header = document.createElement("div");
   header.className = "header";
   const h1 = document.createElement("h1");
   h1.textContent = t("settings_title");
   const back = document.createElement("button");
   back.className = "btn btn-secondary";
-  back.textContent = t("settings_back");
+  back.append(icon("back", 24), document.createTextNode(t("settings_back")));
   back.addEventListener("click", async () => {
     const { mainScreen } = await import("./main");
     show(mainScreen());
   });
   header.append(h1, back);
 
+  const body = document.createElement("div");
+  body.className = "card-body";
+
   // Folder
   const folderCard = document.createElement("div");
-  folderCard.className = "card stack";
+  folderCard.className = "card";
   const folderLabel = document.createElement("h2");
   folderLabel.textContent = t("settings_folder");
   const folderRow = document.createElement("div");
   folderRow.className = "row";
   const folderPath = document.createElement("input");
-  folderPath.className = "input";
+  folderPath.className = "input path-input";
+  folderPath.type = "text";
+  folderPath.dir = "ltr";
   folderPath.readOnly = true;
+  folderPath.tabIndex = -1;
   const choose = document.createElement("button");
   choose.className = "btn btn-secondary";
-  choose.textContent = t("settings_choose");
+  choose.append(icon("folderOpen", 24), document.createTextNode(t("settings_choose")));
   folderRow.append(folderPath, choose);
   folderCard.append(folderLabel, folderRow);
 
   // Compat
   const compatCard = document.createElement("div");
-  compatCard.className = "card stack";
+  compatCard.className = "card";
   const compatLabel = document.createElement("label");
-  compatLabel.className = "check";
+  compatLabel.className = "switch-row";
+  const compatText = document.createElement("h2");
+  compatText.textContent = t("settings_compat");
   const compat = document.createElement("input");
   compat.type = "checkbox";
-  const compatText = document.createElement("span");
-  compatText.textContent = t("settings_compat");
-  compatLabel.append(compat, compatText);
+  compat.className = "switch";
+  compat.setAttribute("role", "switch");
+  compatLabel.append(compatText, compat);
   const compatHelp = document.createElement("div");
   compatHelp.className = "muted";
   compatHelp.textContent = t("settings_compat_help");
@@ -53,14 +63,16 @@ export function settingsScreen(): HTMLElement {
 
   // Tools
   const toolsCard = document.createElement("div");
-  toolsCard.className = "card stack";
+  toolsCard.className = "card";
+  const toolsTitle = document.createElement("h2");
+  toolsTitle.textContent = t("settings_tools");
   const versionRow = document.createElement("div");
-  versionRow.className = "row";
+  versionRow.className = "version-row muted";
   const versionLabel = document.createElement("span");
   versionLabel.textContent = t("settings_version");
   const version = document.createElement("span");
-  version.className = "muted";
-  version.style.direction = "ltr";
+  version.className = "version";
+  version.dir = "ltr";
   versionRow.append(versionLabel, version);
   const toolsRow = document.createElement("div");
   toolsRow.className = "row";
@@ -69,17 +81,21 @@ export function settingsScreen(): HTMLElement {
   check.textContent = t("settings_check_update");
   const reinstall = document.createElement("button");
   reinstall.className = "btn btn-danger";
-  reinstall.textContent = t("settings_reinstall");
+  reinstall.append(icon("retry", 22), document.createTextNode(t("settings_reinstall")));
   toolsRow.append(check, reinstall);
   const toolsMsg = document.createElement("div");
-  toolsMsg.className = "muted";
-  toolsMsg.style.direction = "ltr";
-  toolsMsg.style.textAlign = "left";
-  toolsCard.append(versionRow, toolsRow, toolsMsg);
+  toolsMsg.className = "tools-msg";
+  toolsCard.append(toolsTitle, versionRow, toolsRow, toolsMsg);
 
-  el.append(header, folderCard, compatCard, toolsCard);
+  body.append(folderCard, compatCard, toolsCard);
+  el.append(header, body);
 
   let settings: Settings = { downloadDir: "", compatMode: false };
+
+  function setToolsMsg(text: string, isError = false) {
+    toolsMsg.textContent = text;
+    toolsMsg.classList.toggle("error", isError);
+  }
 
   async function save() {
     await api.setSettings(settings);
@@ -90,13 +106,21 @@ export function settingsScreen(): HTMLElement {
     if (typeof dir === "string" && dir) {
       settings.downloadDir = dir;
       folderPath.value = dir;
-      await save();
+      try {
+        await save();
+      } catch (e) {
+        setToolsMsg(t(errorKey(String(e))), true);
+      }
     }
   });
 
   compat.addEventListener("change", async () => {
     settings.compatMode = compat.checked;
-    await save();
+    try {
+      await save();
+    } catch (e) {
+      setToolsMsg(t(errorKey(String(e))), true);
+    }
   });
 
   async function loadVersion() {
@@ -109,11 +133,11 @@ export function settingsScreen(): HTMLElement {
 
   check.addEventListener("click", async () => {
     check.disabled = true;
-    toolsMsg.textContent = t("settings_checking");
+    setToolsMsg(t("settings_checking"));
     try {
-      toolsMsg.textContent = await api.updateYtdlp();
+      setToolsMsg(await api.updateYtdlp());
     } catch (e) {
-      toolsMsg.textContent = t(errorKey(String(e)));
+      setToolsMsg(t(errorKey(String(e))), true);
     }
     await loadVersion();
     check.disabled = false;
@@ -122,12 +146,12 @@ export function settingsScreen(): HTMLElement {
   reinstall.addEventListener("click", async () => {
     reinstall.disabled = true;
     check.disabled = true;
-    toolsMsg.textContent = t("settings_checking");
+    setToolsMsg(t("settings_checking"));
     try {
       await api.reinstallTools();
-      toolsMsg.textContent = "";
+      setToolsMsg("");
     } catch (e) {
-      toolsMsg.textContent = t(errorKey(String(e)));
+      setToolsMsg(t(errorKey(String(e))), true);
     }
     await loadVersion();
     reinstall.disabled = false;
