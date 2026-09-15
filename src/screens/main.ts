@@ -20,9 +20,17 @@ interface JobRow {
   path: string | null;
 }
 
+interface MainUi {
+  input: HTMLInputElement;
+  list: HTMLElement;
+  inlineError: HTMLElement;
+  refreshButtons: () => void;
+}
+
 const jobs = new Map<number, JobRow>();
 let autoFilled = "";
 let listenersAttached = false;
+let ui: MainUi | null = null;
 
 function errorKey(code: string): StringKey {
   const key = `error_${code}` as StringKey;
@@ -31,6 +39,93 @@ function errorKey(code: string): StringKey {
     return key;
   } catch {
     return "error_yt_dlp_failed";
+  }
+}
+
+function showInlineError(code: string) {
+  if (!ui) return;
+  ui.inlineError.textContent = t(errorKey(code));
+  ui.inlineError.hidden = false;
+}
+
+function setLinkFromClipboard(url: string) {
+  if (!ui) return;
+  const current = ui.input.value.trim();
+  if (current === "" || current === autoFilled) {
+    ui.input.value = url;
+    autoFilled = url;
+    ui.refreshButtons();
+  }
+}
+
+function addRow(id: number, url: string, mode: Mode) {
+  if (!ui) return;
+  const rowEl = document.createElement("div");
+  rowEl.className = "job";
+  const title = document.createElement("div");
+  title.className = "job-title";
+  title.textContent = url;
+  const status = document.createElement("div");
+  status.className = "status";
+  status.textContent = t("status_queued");
+  const progress = document.createElement("div");
+  progress.className = "progress";
+  const bar = document.createElement("div");
+  bar.className = "bar";
+  progress.append(bar);
+  const details = document.createElement("details");
+  details.hidden = true;
+  const summary = document.createElement("summary");
+  summary.textContent = t("details");
+  const detailsBody = document.createElement("div");
+  detailsBody.className = "details";
+  details.append(summary, detailsBody);
+  const actions = document.createElement("div");
+  actions.className = "job-actions";
+  rowEl.append(title, status, progress, details, actions);
+  ui.list.prepend(rowEl);
+
+  const row: JobRow = { id, url, mode, state: "queued", el: rowEl, title, status, progress, bar, actions, details, detailsBody, path: null };
+  jobs.set(id, row);
+  renderActions(row);
+}
+
+function renderActions(row: JobRow) {
+  row.actions.replaceChildren();
+  if (row.state === "queued" || row.state === "downloading" || row.state === "processing") {
+    const cancel = document.createElement("button");
+    cancel.className = "btn btn-danger";
+    cancel.textContent = t("cancel");
+    cancel.addEventListener("click", () => void api.cancel(row.id));
+    row.actions.append(cancel);
+  } else if (row.state === "done") {
+    const open = document.createElement("button");
+    open.className = "btn btn-secondary";
+    open.textContent = t("open_folder");
+    open.addEventListener("click", async () => {
+      if (row.path) {
+        await api.reveal(row.path);
+      } else {
+        const s = await api.getSettings();
+        await api.openFolder(s.downloadDir);
+      }
+    });
+    row.actions.append(open);
+  } else if (row.state === "failed") {
+    const retry = document.createElement("button");
+    retry.className = "btn";
+    retry.textContent = t("retry");
+    retry.addEventListener("click", async () => {
+      row.el.remove();
+      jobs.delete(row.id);
+      try {
+        const id = await api.enqueue(row.url, row.mode);
+        addRow(id, row.url, row.mode);
+      } catch (e) {
+        showInlineError(String(e));
+      }
+    });
+    row.actions.append(retry);
   }
 }
 
@@ -97,14 +192,7 @@ export function mainScreen(): HTMLElement {
   input.addEventListener("input", refreshButtons);
   refreshButtons();
 
-  function setLinkFromClipboard(url: string) {
-    const current = input.value.trim();
-    if (current === "" || current === autoFilled) {
-      input.value = url;
-      autoFilled = url;
-      refreshButtons();
-    }
-  }
+  ui = { input, list, inlineError, refreshButtons };
 
   paste.addEventListener("click", async () => {
     const url = await api.readClipboard();
@@ -142,77 +230,6 @@ export function mainScreen(): HTMLElement {
     }
   });
 
-  function addRow(id: number, url: string, mode: Mode) {
-    const rowEl = document.createElement("div");
-    rowEl.className = "job";
-    const title = document.createElement("div");
-    title.className = "job-title";
-    title.textContent = url;
-    const status = document.createElement("div");
-    status.className = "status";
-    status.textContent = t("status_queued");
-    const progress = document.createElement("div");
-    progress.className = "progress";
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    progress.append(bar);
-    const details = document.createElement("details");
-    details.hidden = true;
-    const summary = document.createElement("summary");
-    summary.textContent = t("details");
-    const detailsBody = document.createElement("div");
-    detailsBody.className = "details";
-    details.append(summary, detailsBody);
-    const actions = document.createElement("div");
-    actions.className = "job-actions";
-    rowEl.append(title, status, progress, details, actions);
-    list.prepend(rowEl);
-
-    const row: JobRow = { id, url, mode, state: "queued", el: rowEl, title, status, progress, bar, actions, details, detailsBody, path: null };
-    jobs.set(id, row);
-    renderActions(row);
-  }
-
-  function renderActions(row: JobRow) {
-    row.actions.replaceChildren();
-    if (row.state === "queued" || row.state === "downloading" || row.state === "processing") {
-      const cancel = document.createElement("button");
-      cancel.className = "btn btn-danger";
-      cancel.textContent = t("cancel");
-      cancel.addEventListener("click", () => void api.cancel(row.id));
-      row.actions.append(cancel);
-    } else if (row.state === "done") {
-      const open = document.createElement("button");
-      open.className = "btn btn-secondary";
-      open.textContent = t("open_folder");
-      open.addEventListener("click", async () => {
-        if (row.path) {
-          await api.reveal(row.path);
-        } else {
-          const s = await api.getSettings();
-          await api.openFolder(s.downloadDir);
-        }
-      });
-      row.actions.append(open);
-    } else if (row.state === "failed") {
-      const retry = document.createElement("button");
-      retry.className = "btn";
-      retry.textContent = t("retry");
-      retry.addEventListener("click", async () => {
-        row.el.remove();
-        jobs.delete(row.id);
-        try {
-          const id = await api.enqueue(row.url, row.mode);
-          addRow(id, row.url, row.mode);
-        } catch (e) {
-          inlineError.textContent = t(errorKey(String(e)));
-          inlineError.hidden = false;
-        }
-      });
-      row.actions.append(retry);
-    }
-  }
-
   if (!listenersAttached) {
     listenersAttached = true;
     void api.onClipboardUrl((p) => setLinkFromClipboard(p.url));
@@ -223,6 +240,7 @@ export function mainScreen(): HTMLElement {
     void api.onJobProgress((p) => {
       const r = jobs.get(p.id);
       if (!r) return;
+      const prevState = r.state;
       r.state = p.status;
       r.bar.style.width = `${p.percent}%`;
       if (p.status === "processing") {
@@ -232,7 +250,7 @@ export function mainScreen(): HTMLElement {
         r.progress.classList.remove("indeterminate");
         r.status.textContent = `${t("status_downloading")} ${Math.round(p.percent)}%` + (p.eta ? `  ${t("eta")} ${p.eta}` : "");
       }
-      renderActions(r);
+      if (r.state !== prevState) renderActions(r);
     });
     void api.onJobDone((p) => {
       const r = jobs.get(p.id);
