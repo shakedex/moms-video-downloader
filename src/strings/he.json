@@ -1,3 +1,52 @@
 {
-  "webview2_missing": "חסר רכיב של Windows בשם WebView2. יש להתקין אותו מהכתובת: https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+  "webview2_missing": "חסר רכיב של Windows בשם WebView2. יש להתקין אותו מהכתובת: https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+
+  "app_title": "הורדת סרטונים",
+  "link_placeholder": "הדביקי כאן קישור לסרטון",
+  "paste": "הדבק",
+  "download_video": "הורידי וידאו",
+  "download_music": "הורידי מוזיקה",
+  "settings": "הגדרות",
+
+  "status_queued": "ממתין בתור",
+  "status_downloading": "מוריד...",
+  "status_processing": "מסיים...",
+  "status_done": "הסתיים",
+  "status_cancelled": "בוטל",
+  "eta": "זמן משוער:",
+  "cancel": "בטל",
+  "retry": "נסי שוב",
+  "open_folder": "פתחי תיקייה",
+  "clear_finished": "נקי רשימה",
+  "details": "פרטים טכניים",
+
+  "error_duplicate": "הקישור הזה כבר נמצא ברשימה",
+  "error_network": "אין חיבור לאינטרנט. בדקי את החיבור ונסי שוב",
+  "error_unsupported_url": "הקישור הזה לא נתמך. נסי קישור אחר",
+  "error_tool_missing": "חסר קובץ של התוכנה. פתחי את ההגדרות ולחצי על התקנה מחדש",
+  "error_disk": "אין מספיק מקום בדיסק",
+  "error_yt_dlp_failed": "ההורדה נכשלה. נסי שוב מאוחר יותר",
+
+  "setup_title": "מכינים את התוכנה בפעם הראשונה",
+  "setup_subtitle": "זה קורה רק פעם אחת ולוקח דקה או שתיים",
+  "setup_step_ytdlp": "מוריד את רכיב ההורדה",
+  "setup_step_ffmpeg": "מוריד את רכיב הווידאו",
+  "setup_failed": "ההכנה נכשלה. בדקי שיש חיבור לאינטרנט",
+  "setup_retry": "נסי שוב",
+
+  "settings_title": "הגדרות",
+  "settings_folder": "תיקיית ההורדות",
+  "settings_choose": "בחרי תיקייה",
+  "settings_compat": "מצב תאימות",
+  "settings_compat_help": "מוריד באיכות מעט נמוכה יותר, אבל הקבצים ייפתחו בכל נגן",
+  "settings_version": "גרסת רכיב ההורדה:",
+  "settings_check_update": "בדקי עדכון",
+  "settings_reinstall": "התקיני מחדש את הרכיבים",
+  "settings_back": "חזרה",
+  "settings_checking": "בודק...",
+
+  "close_confirm_title": "יש הורדה פעילה",
+  "close_confirm_body": "אם תסגרי עכשיו, ההורדה תבוטל. לסגור בכל זאת?",
+  "yes": "כן",
+  "no": "לא"
 }
