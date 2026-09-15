@@ -1,19 +1,24 @@
 {
-  "name": "tauri-app",
+  "name": "lipszyc-video-downloader",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "release": "powershell -ExecutionPolicy Bypass -File scripts/release.ps1",
+    "test": "cd src-tauri && cargo test"
   },
   "dependencies": {
     "@fontsource/assistant": "^5.3.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.3",
-    "@tauri-apps/plugin-opener": "^2",
     "lucide": "^1.46.0"
   },
   "devDependencies": {

@@ -33,5 +33,5 @@ fn main() {
             .show();
         return;
     }
-    tauri_app_lib::run();
+    lipszyc_video_downloader_lib::run();
 }
