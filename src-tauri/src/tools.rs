@@ -145,7 +145,11 @@ pub async fn install_tools(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn reinstall_tools(app: AppHandle) -> Result<(), String> {
-    let _ = fs::remove_dir_all(paths::bin_dir(&app));
+    match fs::remove_dir_all(paths::bin_dir(&app)) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return Err("disk".into()),
+    }
     install(&app).await
 }
 
