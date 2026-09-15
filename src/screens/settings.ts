@@ -18,7 +18,7 @@ export function settingsScreen(): HTMLElement {
   back.append(icon("back", 24), document.createTextNode(t("settings_back")));
   back.addEventListener("click", async () => {
     const { mainScreen } = await import("./main");
-    show(mainScreen());
+    show(mainScreen(), "main");
   });
   header.append(h1, back);
 

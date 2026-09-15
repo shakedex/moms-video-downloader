@@ -96,12 +96,38 @@ body::after {
   height: 40px;
   display: flex;
   align-items: stretch;
+  justify-content: space-between;
+  /* DOM order equals visual order regardless of the document's RTL direction:
+     brand at the left edge, window controls at the right edge (standard
+     Windows order), controls read left-to-right as settings, minimize, close. */
+  direction: ltr;
   background: var(--paper);
   user-select: none;
 }
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline-start: 14px;
+  min-width: 0;
+}
+.titlebar-brand img {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.titlebar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
 .titlebar-actions {
   display: flex;
-  margin-inline-end: auto;
 }
 .titlebar-btn {
   display: inline-flex;
@@ -118,6 +144,7 @@ body::after {
 .titlebar-btn:hover { background: var(--paper-deep); }
 .titlebar-btn-close:hover { background: #c0392b; color: #fff; }
 .titlebar-btn .icon { width: 18px; height: 18px; }
+.titlebar-btn:disabled { opacity: 0.35; pointer-events: none; }
 
 #screen {
   height: calc(100vh - 40px);
@@ -159,18 +186,6 @@ button:disabled { cursor: not-allowed; }
   justify-content: space-between;
   gap: 12px;
   min-height: 52px;
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.brand img {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  box-shadow: 0 0 0 2px var(--card), 0 0 0 3.5px var(--line);
 }
 h1 {
   margin: 0;

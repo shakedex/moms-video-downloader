@@ -1,6 +1,5 @@
 import { api, type Mode, type Settings } from "../api";
 import { t, errorKey } from "../strings/t";
-import { show } from "../main";
 import { icon } from "../icons";
 
 type JobState = "queued" | "downloading" | "processing" | "done" | "failed" | "cancelled";
@@ -44,8 +43,6 @@ let mode: Mode = "video";
 let settingsCache: Settings | null = null;
 let listenersAttached = false;
 let ui: MainUi | null = null;
-
-const logoUrl = new URL("../logo.png", import.meta.url).href;
 
 /** Numbers, percentages and ETAs are LTR runs inside Hebrew text. */
 function num(text: string): HTMLElement {
@@ -194,29 +191,6 @@ export function mainScreen(): HTMLElement {
   const el = document.createElement("div");
   el.className = "screen";
 
-  // Header: brand on the right, settings on the left (RTL flow).
-  const header = document.createElement("div");
-  header.className = "header";
-  const brand = document.createElement("div");
-  brand.className = "brand";
-  const logo = document.createElement("img");
-  logo.src = logoUrl;
-  logo.alt = "";
-  const h1 = document.createElement("h1");
-  h1.dir = "ltr";
-  h1.textContent = t("app_title");
-  brand.append(logo, h1);
-  const gear = document.createElement("button");
-  gear.className = "icon-btn";
-  gear.title = t("settings");
-  gear.setAttribute("aria-label", t("settings"));
-  gear.append(icon("settings", 26));
-  gear.addEventListener("click", async () => {
-    const { settingsScreen } = await import("./settings");
-    show(settingsScreen());
-  });
-  header.append(brand, gear);
-
   // Link row: input + paste icon button.
   const linkRow = document.createElement("div");
   linkRow.className = "row";
@@ -282,7 +256,7 @@ export function mainScreen(): HTMLElement {
   empty.append(icon("download", 36), document.createTextNode(t("jobs_empty")));
   list.append(empty);
 
-  el.append(header, linkRow, modeField, downloadBtn, inlineError, listHeader, list);
+  el.append(linkRow, modeField, downloadBtn, inlineError, listHeader, list);
 
   function refreshButtons() {
     downloadBtn.disabled = input.value.trim() === "";

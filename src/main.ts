@@ -6,12 +6,30 @@ import { icon } from "./icons";
 
 const screenRoot = document.querySelector<HTMLDivElement>("#screen")!;
 const titlebar = document.querySelector<HTMLDivElement>(".titlebar")!;
+const logoUrl = new URL("./logo.png", import.meta.url).href;
 
-export function show(screen: HTMLElement) {
+type ScreenName = "main" | "settings" | "setup";
+
+let currentScreen: ScreenName | undefined;
+let settingsBtn: HTMLButtonElement | null = null;
+
+export function show(screen: HTMLElement, name?: ScreenName) {
   screenRoot.replaceChildren(screen);
+  currentScreen = name;
+  updateSettingsButton();
 }
 
-function titlebarButton(iconName: "minimize" | "close", label: string, extraClass?: string): HTMLButtonElement {
+function updateSettingsButton() {
+  if (!settingsBtn) return;
+  // Disabled during setup, and before the first screen is shown.
+  settingsBtn.disabled = currentScreen === "setup" || currentScreen === undefined;
+}
+
+function titlebarButton(
+  iconName: "settings" | "minimize" | "close",
+  label: string,
+  extraClass?: string,
+): HTMLButtonElement {
   const b = document.createElement("button");
   b.type = "button";
   b.className = extraClass ? `titlebar-btn ${extraClass}` : "titlebar-btn";
@@ -22,9 +40,32 @@ function titlebarButton(iconName: "minimize" | "close", label: string, extraClas
 }
 
 function buildTitlebar() {
+  const brand = document.createElement("div");
+  brand.className = "titlebar-brand";
+  brand.setAttribute("data-tauri-drag-region", "");
+  const logo = document.createElement("img");
+  logo.src = logoUrl;
+  logo.alt = "";
+  const title = document.createElement("span");
+  title.className = "titlebar-title";
+  title.dir = "ltr";
+  title.textContent = t("app_title");
+  brand.append(logo, title);
+
   const actions = document.createElement("div");
   actions.className = "titlebar-actions";
   actions.setAttribute("data-tauri-drag-region", "");
+
+  settingsBtn = titlebarButton("settings", t("settings"));
+  settingsBtn.addEventListener("click", async () => {
+    if (currentScreen === "settings") {
+      const { mainScreen } = await import("./screens/main");
+      show(mainScreen(), "main");
+    } else if (currentScreen === "main") {
+      const { settingsScreen } = await import("./screens/settings");
+      show(settingsScreen(), "settings");
+    }
+  });
 
   const minimize = titlebarButton("minimize", t("titlebar_minimize"));
   minimize.addEventListener("click", () => void getCurrentWindow().minimize());
@@ -32,8 +73,9 @@ function buildTitlebar() {
   const close = titlebarButton("close", t("titlebar_close"), "titlebar-btn-close");
   close.addEventListener("click", () => void getCurrentWindow().close());
 
-  actions.append(minimize, close);
-  titlebar.append(actions);
+  actions.append(settingsBtn, minimize, close);
+  titlebar.append(brand, actions);
+  updateSettingsButton();
 }
 
 buildTitlebar();
@@ -42,10 +84,10 @@ async function boot() {
   const ok = await api.toolsStatus();
   if (ok) {
     const { mainScreen } = await import("./screens/main");
-    show(mainScreen());
+    show(mainScreen(), "main");
   } else {
     const { setupScreen } = await import("./screens/setup");
-    show(setupScreen());
+    show(setupScreen(), "setup");
   }
 }
 

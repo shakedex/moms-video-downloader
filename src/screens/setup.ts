@@ -81,7 +81,7 @@ export function setupScreen(): HTMLElement {
       await api.installTools();
       unlisten?.();
       const { mainScreen } = await import("./main");
-      show(mainScreen());
+      show(mainScreen(), "main");
     } catch {
       progress.hidden = true;
       step.hidden = true;
