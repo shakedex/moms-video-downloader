@@ -1,3 +1,4 @@
+mod downloader;
 mod paths;
 mod settings;
 mod tools;
@@ -13,6 +14,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
+        .manage(downloader::DownloaderState::default())
         .setup(|app| {
             if tools::all_present(&app.handle()) {
                 tools::spawn_background_update(&app.handle());
@@ -27,6 +29,11 @@ pub fn run() {
             tools::reinstall_tools,
             tools::ytdlp_version,
             tools::update_ytdlp,
+            downloader::enqueue_download,
+            downloader::cancel_download,
+            downloader::cancel_all,
+            downloader::reveal_in_explorer,
+            downloader::open_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
