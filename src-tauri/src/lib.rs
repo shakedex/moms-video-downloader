@@ -1,4 +1,5 @@
 mod paths;
+mod settings;
 
 use tauri::Manager;
 
@@ -11,7 +12,10 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            settings::get_settings,
+            settings::set_settings,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
