@@ -1,4 +1,4 @@
-# Mom's Video Downloader
+# Lipszyc Video Downloader
 
 Portable Windows app for downloading videos and music with yt-dlp, in Hebrew.
 
@@ -7,11 +7,11 @@ Portable Windows app for downloading videos and music with yt-dlp, in Hebrew.
     pnpm install
     pnpm tauri build
 
-The portable exe is `src-tauri/target/release/MomsVideoDownloader.exe`. Copy that single file anywhere and run it.
+The portable exe is `src-tauri/target/release/LipszycVideoDownloader.exe`. Copy that single file anywhere and run it.
 
 ## Runtime files
 
-Everything the app downloads lives in `%LOCALAPPDATA%\MomsVideoDownloader\`:
+Everything the app downloads lives in `%LOCALAPPDATA%\LipszycVideoDownloader\`:
 `bin\` holds yt-dlp.exe, ffmpeg.exe, ffprobe.exe; `settings.json` holds settings; `update.log` holds the last background yt-dlp update output. Delete the folder to reset.
 
 ## Changing any text

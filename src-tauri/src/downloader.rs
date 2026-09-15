@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 
@@ -67,6 +67,7 @@ pub fn build_args(
         "%(title)s.%(ext)s".into(),
         "--windows-filenames".into(),
         "--newline".into(),
+        "--progress".into(),
         "--progress-template".into(),
         "download:MVD|%(progress.status)s|%(progress._percent_str)s|%(progress._eta_str)s".into(),
         "--print".into(),
@@ -74,6 +75,8 @@ pub fn build_args(
         "--print".into(),
         "after_move:MVD_FILE|%(filepath)s".into(),
         "--no-warnings".into(),
+        "--encoding".into(),
+        "utf-8".into(),
     ];
     match mode {
         Mode::Video if compat => a.extend([
@@ -98,6 +101,7 @@ pub fn build_args(
             "--embed-metadata".to_string(),
         ]),
     }
+    a.push("--".to_string());
     a.push(url.to_string());
     a
 }
@@ -186,6 +190,8 @@ async fn run_job(app: AppHandle, inner: Arc<Mutex<Inner>>, job: Job) {
     let args = build_args(job.mode, s.compat_mode, &bin, &dl, &job.url);
     let child = Command::new(&exe)
         .args(&args)
+        .env("PYTHONIOENCODING", "utf-8")
+        .env("PYTHONUTF8", "1")
         .creation_flags(paths::NO_WINDOW)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -335,7 +341,7 @@ pub fn cancel_download(app: AppHandle, state: State<'_, DownloaderState>, id: u3
 }
 
 #[tauri::command]
-pub fn cancel_all(app: AppHandle, state: State<'_, DownloaderState>) {
+pub async fn cancel_all(app: AppHandle, state: State<'_, DownloaderState>) -> Result<(), ()> {
     let ids: Vec<u32> = {
         let g = state.inner.lock().unwrap();
         let mut v: Vec<u32> = g.queue.iter().map(|j| j.id).collect();
@@ -345,15 +351,25 @@ pub fn cancel_all(app: AppHandle, state: State<'_, DownloaderState>) {
     for id in ids {
         cancel_download(app.clone(), state.clone(), id);
     }
+    for _ in 0..30 {
+        if state.inner.lock().unwrap().running.is_none() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    Ok(())
 }
 
 #[tauri::command]
-pub fn reveal_in_explorer(path: String) {
+pub fn reveal_in_explorer(path: String, folder: String) {
     use std::os::windows::process::CommandExt;
-    let _ = std::process::Command::new("explorer.exe")
-        .raw_arg(format!("/select,\"{path}\""))
-        .creation_flags(paths::NO_WINDOW)
-        .spawn();
+    let mut cmd = std::process::Command::new("explorer.exe");
+    if !path.is_empty() && std::path::Path::new(&path).exists() {
+        cmd.raw_arg(format!("/select,\"{path}\""));
+    } else {
+        cmd.arg(folder);
+    }
+    let _ = cmd.creation_flags(paths::NO_WINDOW).spawn();
 }
 
 #[tauri::command]
@@ -392,7 +408,9 @@ mod tests {
         let a = build_args(Mode::Video, false, Path::new("C:\\bin"), Path::new("C:\\dl"), "https://x");
         assert!(a.windows(2).any(|w| w == ["-f", "bv*+ba/b"]));
         assert!(a.contains(&"--no-playlist".to_string()));
+        assert!(a.contains(&"--progress".to_string()));
         assert_eq!(a.last().unwrap(), "https://x");
+        assert_eq!(a[a.len() - 2], "--".to_string());
     }
 
     #[test]

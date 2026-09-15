@@ -111,6 +111,8 @@ fn run_ytdlp(exe: PathBuf, args: &[&str]) -> Result<String, String> {
     }
     let out = std::process::Command::new(exe)
         .args(args)
+        .env("PYTHONIOENCODING", "utf-8")
+        .env("PYTHONUTF8", "1")
         .creation_flags(paths::NO_WINDOW)
         .output()
         .map_err(|_| "tool_missing".to_string())?;

@@ -8,7 +8,7 @@ pub fn app_dir(app: &AppHandle) -> PathBuf {
     app.path()
         .local_data_dir()
         .expect("local data dir")
-        .join("MomsVideoDownloader")
+        .join("LipszycVideoDownloader")
 }
 
 pub fn bin_dir(app: &AppHandle) -> PathBuf {

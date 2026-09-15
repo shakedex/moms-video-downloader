@@ -27,7 +27,7 @@ fn main() {
             .and_then(|v| v.get("webview2_missing")?.as_str().map(String::from))
             .unwrap_or_else(|| "WebView2 runtime is missing.".to_string());
         rfd::MessageDialog::new()
-            .set_title("MomsVideoDownloader")
+            .set_title("Lipszyc Video Downloader")
             .set_description(msg)
             .set_level(rfd::MessageLevel::Error)
             .show();
