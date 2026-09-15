@@ -28,6 +28,14 @@ interface MainUi {
 }
 
 const jobs = new Map<number, JobRow>();
+
+export function hasActiveJobs(): boolean {
+  for (const r of jobs.values()) {
+    if (r.state === "queued" || r.state === "downloading" || r.state === "processing") return true;
+  }
+  return false;
+}
+
 let autoFilled = "";
 let listenersAttached = false;
 let ui: MainUi | null = null;
