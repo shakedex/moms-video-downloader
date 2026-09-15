@@ -7,7 +7,7 @@ Portable Windows app for downloading videos and music with yt-dlp, in Hebrew.
     pnpm install
     pnpm tauri build
 
-The portable exe is `src-tauri/target/release/tauri-app.exe`. Copy that single file anywhere and run it.
+The portable exe is `src-tauri/target/release/MomsVideoDownloader.exe`. Copy that single file anywhere and run it.
 
 ## Runtime files
 
