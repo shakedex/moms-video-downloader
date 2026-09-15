@@ -1,3 +1,4 @@
+mod clipboard;
 mod downloader;
 mod paths;
 mod settings;
@@ -19,9 +20,11 @@ pub fn run() {
             if tools::all_present(&app.handle()) {
                 tools::spawn_background_update(&app.handle());
             }
+            clipboard::start_watcher(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            clipboard::read_clipboard,
             settings::get_settings,
             settings::set_settings,
             tools::tools_status,
