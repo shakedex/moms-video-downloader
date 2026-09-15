@@ -55,6 +55,7 @@ pub fn build_args(
     compat: bool,
     bin_dir: &Path,
     download_dir: &Path,
+    impersonate: bool,
     url: &str,
 ) -> Vec<String> {
     let mut a: Vec<String> = vec![
@@ -77,7 +78,13 @@ pub fn build_args(
         "--no-warnings".into(),
         "--encoding".into(),
         "utf-8".into(),
+        "--extractor-args".into(),
+        "generic:impersonate".into(),
     ];
+    if impersonate {
+        a.push("--impersonate".to_string());
+        a.push("chrome".to_string());
+    }
     match mode {
         Mode::Video if compat => a.extend([
             "-S".to_string(),
@@ -141,6 +148,12 @@ pub fn classify_error(stderr: &str) -> &'static str {
     }
 }
 
+/// True when yt-dlp's stderr indicates a bot-check / 403 that browser impersonation may bypass.
+pub fn needs_impersonation_retry(stderr: &str) -> bool {
+    let s = stderr.to_ascii_lowercase();
+    s.contains("impersonate") || s.contains("cloudflare") || s.contains("http error 403")
+}
+
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct TitleEv { id: u32, title: String }
@@ -178,17 +191,23 @@ fn cleanup_partials(download_dir: &Path, title: Option<&str>) {
     }
 }
 
-async fn run_job(app: AppHandle, inner: Arc<Mutex<Inner>>, job: Job) {
-    let s = settings::load(&app);
-    let bin = paths::bin_dir(&app);
-    let dl = PathBuf::from(&s.download_dir);
-    let exe = paths::ytdlp_exe(&app);
-    if !exe.exists() {
-        let _ = app.emit("job-failed", FailedEv { id: job.id, code: "tool_missing".into(), details: String::new() });
-        return;
-    }
-    let args = build_args(job.mode, s.compat_mode, &bin, &dl, &job.url);
-    let child = Command::new(&exe)
+/// Runs one yt-dlp attempt for `job` (spawn, stream stdout/stderr, wait), registering it as the
+/// live `Running` job so `cancel_download` can kill it. Returns
+/// `(exit_success, stderr_text, final_path, cancelled)` for this single attempt; it does not emit
+/// the job's final outcome event (done/failed/cancelled) — the caller does that once, after
+/// possibly retrying with impersonation.
+async fn run_attempt(
+    app: &AppHandle,
+    inner: &Arc<Mutex<Inner>>,
+    job: &Job,
+    exe: &Path,
+    bin: &Path,
+    dl: &Path,
+    compat: bool,
+    impersonate: bool,
+) -> (bool, String, Option<String>, bool) {
+    let args = build_args(job.mode, compat, bin, dl, impersonate, &job.url);
+    let child = Command::new(exe)
         .args(&args)
         .env("PYTHONIOENCODING", "utf-8")
         .env("PYTHONUTF8", "1")
@@ -199,10 +218,7 @@ async fn run_job(app: AppHandle, inner: Arc<Mutex<Inner>>, job: Job) {
         .spawn();
     let mut child = match child {
         Ok(c) => c,
-        Err(_) => {
-            let _ = app.emit("job-failed", FailedEv { id: job.id, code: "tool_missing".into(), details: String::new() });
-            return;
-        }
+        Err(_) => return (false, String::new(), None, false),
     };
     let stdout = child.stdout.take().expect("stdout");
     let stderr = child.stderr.take().expect("stderr");
@@ -259,11 +275,43 @@ async fn run_job(app: AppHandle, inner: Arc<Mutex<Inner>>, job: Job) {
     };
 
     if cancelled {
-        cleanup_partials(&dl, title.as_deref());
+        cleanup_partials(dl, title.as_deref());
+        return (false, stderr_text, final_path, true);
+    }
+    let ok = status.map(|s| s.success()).unwrap_or(false);
+    (ok, stderr_text, final_path, false)
+}
+
+async fn run_job(app: AppHandle, inner: Arc<Mutex<Inner>>, job: Job) {
+    let s = settings::load(&app);
+    let bin = paths::bin_dir(&app);
+    let dl = PathBuf::from(&s.download_dir);
+    let exe = paths::ytdlp_exe(&app);
+    if !exe.exists() {
+        let _ = app.emit("job-failed", FailedEv { id: job.id, code: "tool_missing".into(), details: String::new() });
+        return;
+    }
+
+    let (mut ok, mut stderr_text, mut final_path, mut cancelled) =
+        run_attempt(&app, &inner, &job, &exe, &bin, &dl, s.compat_mode, false).await;
+
+    if !cancelled && !ok && needs_impersonation_retry(&stderr_text) {
+        let _ = app.emit(
+            "job-progress",
+            ProgressEv { id: job.id, percent: 0.0, eta: "".into(), status: "downloading".into() },
+        );
+        let (ok2, stderr2, path2, cancelled2) =
+            run_attempt(&app, &inner, &job, &exe, &bin, &dl, s.compat_mode, true).await;
+        ok = ok2;
+        stderr_text = stderr2;
+        final_path = path2;
+        cancelled = cancelled2;
+    }
+
+    if cancelled {
         let _ = app.emit("job-cancelled", IdEv { id: job.id });
         return;
     }
-    let ok = status.map(|s| s.success()).unwrap_or(false);
     if ok {
         let _ = app.emit("job-done", DoneEv { id: job.id, path: final_path });
     } else {
@@ -405,26 +453,34 @@ mod tests {
 
     #[test]
     fn video_args_use_best_and_mp4() {
-        let a = build_args(Mode::Video, false, Path::new("C:\\bin"), Path::new("C:\\dl"), "https://x");
+        let a = build_args(Mode::Video, false, Path::new("C:\\bin"), Path::new("C:\\dl"), false, "https://x");
         assert!(a.windows(2).any(|w| w == ["-f", "bv*+ba/b"]));
         assert!(a.contains(&"--no-playlist".to_string()));
         assert!(a.contains(&"--progress".to_string()));
+        assert!(a.windows(2).any(|w| w == ["--extractor-args", "generic:impersonate"]));
+        assert!(!a.contains(&"--impersonate".to_string()));
         assert_eq!(a.last().unwrap(), "https://x");
         assert_eq!(a[a.len() - 2], "--".to_string());
     }
 
     #[test]
     fn compat_args_prefer_h264() {
-        let a = build_args(Mode::Video, true, Path::new("C:\\bin"), Path::new("C:\\dl"), "https://x");
+        let a = build_args(Mode::Video, true, Path::new("C:\\bin"), Path::new("C:\\dl"), false, "https://x");
         assert!(a.windows(2).any(|w| w == ["-S", "res,vcodec:h264,acodec:m4a"]));
         assert!(!a.contains(&"-f".to_string()));
     }
 
     #[test]
     fn music_args_extract_mp3() {
-        let a = build_args(Mode::Music, false, Path::new("C:\\bin"), Path::new("C:\\dl"), "https://x");
+        let a = build_args(Mode::Music, false, Path::new("C:\\bin"), Path::new("C:\\dl"), false, "https://x");
         assert!(a.contains(&"-x".to_string()));
         assert!(a.windows(2).any(|w| w == ["--audio-format", "mp3"]));
+    }
+
+    #[test]
+    fn impersonate_flag_adds_chrome_target() {
+        let a = build_args(Mode::Video, false, Path::new("C:\\bin"), Path::new("C:\\dl"), true, "https://x");
+        assert!(a.windows(2).any(|w| w == ["--impersonate", "chrome"]));
     }
 
     #[test]
@@ -432,5 +488,14 @@ mod tests {
         assert_eq!(classify_error("ERROR: Unsupported URL: https://x"), "unsupported_url");
         assert_eq!(classify_error("urlopen error [Errno 11001] getaddrinfo failed"), "network");
         assert_eq!(classify_error("something odd"), "yt_dlp_failed");
+    }
+
+    #[test]
+    fn detects_cloudflare_403() {
+        assert!(needs_impersonation_retry(
+            "HTTP Error 403 caused by Cloudflare anti-bot challenge; try again with --extractor-args \"generic:impersonate\""
+        ));
+        assert!(needs_impersonation_retry("HTTP Error 403: Forbidden"));
+        assert!(!needs_impersonation_retry("ERROR: Unsupported URL: https://x"));
     }
 }
