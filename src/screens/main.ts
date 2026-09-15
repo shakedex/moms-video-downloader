@@ -1,5 +1,5 @@
 import { api, type Mode } from "../api";
-import { t, type StringKey } from "../strings/t";
+import { t, errorKey } from "../strings/t";
 import { show } from "../main";
 
 type JobState = "queued" | "downloading" | "processing" | "done" | "failed" | "cancelled";
@@ -31,16 +31,6 @@ const jobs = new Map<number, JobRow>();
 let autoFilled = "";
 let listenersAttached = false;
 let ui: MainUi | null = null;
-
-function errorKey(code: string): StringKey {
-  const key = `error_${code}` as StringKey;
-  try {
-    t(key);
-    return key;
-  } catch {
-    return "error_yt_dlp_failed";
-  }
-}
 
 function showInlineError(code: string) {
   if (!ui) return;

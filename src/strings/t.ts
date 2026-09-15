@@ -9,3 +9,13 @@ export function t(key: StringKey): string {
   }
   return v;
 }
+
+export function errorKey(code: string): StringKey {
+  const key = `error_${code}` as StringKey;
+  try {
+    t(key);
+    return key;
+  } catch {
+    return "error_yt_dlp_failed";
+  }
+}

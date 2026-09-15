@@ -1,6 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { api, type Settings } from "../api";
-import { t } from "../strings/t";
+import { t, errorKey } from "../strings/t";
 import { show } from "../main";
 
 export function settingsScreen(): HTMLElement {
@@ -113,7 +113,7 @@ export function settingsScreen(): HTMLElement {
     try {
       toolsMsg.textContent = await api.updateYtdlp();
     } catch (e) {
-      toolsMsg.textContent = String(e);
+      toolsMsg.textContent = t(errorKey(String(e)));
     }
     await loadVersion();
     check.disabled = false;
@@ -127,7 +127,7 @@ export function settingsScreen(): HTMLElement {
       await api.reinstallTools();
       toolsMsg.textContent = "";
     } catch (e) {
-      toolsMsg.textContent = String(e);
+      toolsMsg.textContent = t(errorKey(String(e)));
     }
     await loadVersion();
     reinstall.disabled = false;
