@@ -4,6 +4,7 @@ import {
   ClipboardPaste,
   Download,
   FolderOpen,
+  Minus,
   Music,
   RotateCcw,
   Settings,
@@ -22,6 +23,8 @@ export const icons = {
   folderOpen: FolderOpen,
   retry: RotateCcw,
   back: ArrowRight,
+  minimize: Minus,
+  close: X,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof icons;

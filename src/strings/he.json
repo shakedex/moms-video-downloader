@@ -4,8 +4,11 @@
   "app_title": "Lipszyc Video Downloader",
   "link_placeholder": "הדביקי כאן קישור לסרטון",
   "paste": "הדבק",
+  "mode_label": "מה להוריד?",
   "mode_video": "וידאו",
-  "mode_music": "מוזיקה",
+  "mode_video_hint": "קובץ סרטון (MP4)",
+  "mode_audio": "שמע",
+  "mode_audio_hint": "רק הצליל (MP3)",
   "download": "הורידי",
   "settings": "הגדרות",
 
@@ -52,5 +55,8 @@
   "close_confirm_title": "יש הורדה פעילה",
   "close_confirm_body": "אם תסגרי עכשיו, ההורדה תבוטל. לסגור בכל זאת?",
   "yes": "כן",
-  "no": "לא"
+  "no": "לא",
+
+  "titlebar_minimize": "מזער",
+  "titlebar_close": "סגור"
 }

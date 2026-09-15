@@ -172,12 +172,21 @@ function renderActions(row: JobRow) {
   }
 }
 
-function segOption(name: "video" | "music", label: string): HTMLButtonElement {
+function segOption(name: "video" | "music", label: string, hint: string): HTMLButtonElement {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "seg-opt";
   b.dataset.mode = name;
-  b.append(icon(name, 26), document.createTextNode(label));
+  const text = document.createElement("span");
+  text.className = "seg-opt-text";
+  const labelEl = document.createElement("span");
+  labelEl.className = "seg-opt-label";
+  labelEl.textContent = label;
+  const hintEl = document.createElement("span");
+  hintEl.className = "seg-opt-hint";
+  hintEl.textContent = hint;
+  text.append(labelEl, hintEl);
+  b.append(icon(name, 26), text);
   return b;
 }
 
@@ -225,13 +234,19 @@ export function mainScreen(): HTMLElement {
   paste.append(icon("paste", 26));
   linkRow.append(input, paste);
 
-  // Segmented mode switch.
+  // Segmented mode switch, with a caption above and a hint under each option.
+  const modeField = document.createElement("div");
+  modeField.className = "mode-field";
+  const modeLabel = document.createElement("div");
+  modeLabel.className = "field-label";
+  modeLabel.textContent = t("mode_label");
   const seg = document.createElement("div");
   seg.className = "seg";
   seg.setAttribute("role", "group");
-  const videoOpt = segOption("video", t("mode_video"));
-  const musicOpt = segOption("music", t("mode_music"));
+  const videoOpt = segOption("video", t("mode_video"), t("mode_video_hint"));
+  const musicOpt = segOption("music", t("mode_audio"), t("mode_audio_hint"));
   seg.append(videoOpt, musicOpt);
+  modeField.append(modeLabel, seg);
   function renderMode() {
     videoOpt.setAttribute("aria-pressed", String(mode === "video"));
     musicOpt.setAttribute("aria-pressed", String(mode === "music"));
@@ -267,7 +282,7 @@ export function mainScreen(): HTMLElement {
   empty.append(icon("download", 36), document.createTextNode(t("jobs_empty")));
   list.append(empty);
 
-  el.append(header, linkRow, seg, downloadBtn, inlineError, listHeader, list);
+  el.append(header, linkRow, modeField, downloadBtn, inlineError, listHeader, list);
 
   function refreshButtons() {
     downloadBtn.disabled = input.value.trim() === "";

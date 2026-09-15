@@ -40,6 +40,12 @@
 
 * { box-sizing: border-box; }
 
+/* The browser's UA stylesheet only sets `display: none` for [hidden] with low
+   specificity; several elements below use `display: flex` in this stylesheet,
+   which otherwise wins the cascade and renders as an empty box even while
+   hidden. Force it with !important so `.hidden = true` always actually hides. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   height: 100%;
@@ -78,6 +84,43 @@ body::after {
   position: relative;
   z-index: 1;
   height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Custom title bar ---------- */
+
+.titlebar {
+  flex: none;
+  height: 40px;
+  display: flex;
+  align-items: stretch;
+  background: var(--paper);
+  user-select: none;
+}
+.titlebar-actions {
+  display: flex;
+  margin-inline-end: auto;
+}
+.titlebar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 40px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  transition: background-color 120ms;
+}
+.titlebar-btn:hover { background: var(--paper-deep); }
+.titlebar-btn-close:hover { background: #c0392b; color: #fff; }
+.titlebar-btn .icon { width: 18px; height: 18px; }
+
+#screen {
+  height: calc(100vh - 40px);
   overflow: hidden;
 }
 
@@ -273,6 +316,22 @@ h2 {
 
 /* ---------- Segmented mode switch ---------- */
 
+.field-label {
+  color: var(--ink-soft);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mode-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Tighten the gap that .screen's flex `gap` puts above this block: the
+     label + two-line options need a little more room, taken from here
+     rather than shrinking the primary button. */
+  margin-top: -6px;
+}
+
 .seg {
   display: flex;
   gap: 4px;
@@ -285,15 +344,15 @@ h2 {
   flex: 1;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
-  min-height: 56px;
+  min-height: 60px;
+  padding: 6px 14px;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink-soft);
-  font-size: 22px;
-  font-weight: 600;
+  text-align: start;
   transition: background-color 140ms, color 140ms, box-shadow 140ms;
 }
 .seg-opt:hover { color: var(--ink); }
@@ -304,6 +363,25 @@ h2 {
 }
 .seg-opt[aria-pressed="true"] .icon { color: var(--accent); }
 .seg-opt .icon { width: 26px; height: 26px; }
+
+.seg-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  text-align: start;
+}
+.seg-opt-label {
+  font-size: 20px;
+  font-weight: 700;
+  color: inherit;
+}
+.seg-opt-hint {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+.seg-opt[aria-pressed="true"] .seg-opt-hint { color: var(--ink-soft); }
 
 /* ---------- Inline error ---------- */
 

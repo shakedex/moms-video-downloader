@@ -2,12 +2,41 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./api";
 import { t } from "./strings/t";
+import { icon } from "./icons";
 
-const root = document.querySelector<HTMLDivElement>("#app")!;
+const screenRoot = document.querySelector<HTMLDivElement>("#screen")!;
+const titlebar = document.querySelector<HTMLDivElement>(".titlebar")!;
 
 export function show(screen: HTMLElement) {
-  root.replaceChildren(screen);
+  screenRoot.replaceChildren(screen);
 }
+
+function titlebarButton(iconName: "minimize" | "close", label: string, extraClass?: string): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = extraClass ? `titlebar-btn ${extraClass}` : "titlebar-btn";
+  b.title = label;
+  b.setAttribute("aria-label", label);
+  b.append(icon(iconName, 18));
+  return b;
+}
+
+function buildTitlebar() {
+  const actions = document.createElement("div");
+  actions.className = "titlebar-actions";
+  actions.setAttribute("data-tauri-drag-region", "");
+
+  const minimize = titlebarButton("minimize", t("titlebar_minimize"));
+  minimize.addEventListener("click", () => void getCurrentWindow().minimize());
+
+  const close = titlebarButton("close", t("titlebar_close"), "titlebar-btn-close");
+  close.addEventListener("click", () => void getCurrentWindow().close());
+
+  actions.append(minimize, close);
+  titlebar.append(actions);
+}
+
+buildTitlebar();
 
 async function boot() {
   const ok = await api.toolsStatus();
