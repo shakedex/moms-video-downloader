@@ -1,17 +1,16 @@
 # Mom's Video Downloader
 
-A portable Windows app that lets a non-technical person download a video or its audio from
-YouTube, Facebook, TikTok, Kan, and any other site [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-supports. Hebrew, right-to-left, one big button. Built for one specific user (the author's
-mother), so every decision favors "she can't get this wrong" over flexibility.
+A portable Windows app for downloading a video or its audio from YouTube, Facebook, TikTok,
+Kan, and any other site [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports. Hebrew,
+right-to-left, one button.
 
-The whole interaction: copy a link in the browser, open the app (the link is already filled
-in), pick video or audio, click download.
+Usage: copy a link in the browser, open the app (the link is already filled in), pick video or
+audio, click download.
 
 ## Contents
 
 - [What it does](#what-it-does)
-- [Installing it on her PC](#installing-it-on-her-pc)
+- [Installing](#installing)
 - [Developer setup](#developer-setup)
 - [Everyday commands](#everyday-commands)
 - [Releasing a new build](#releasing-a-new-build)
@@ -22,36 +21,35 @@ in), pick video or audio, click download.
 - [Runtime files](#runtime-files)
 - [Troubleshooting](#troubleshooting)
 - [Known limits](#known-limits)
-- [Design history](#design-history)
 
 ## What it does
 
 - **Single portable exe.** No installer, no admin rights, nothing pre-installed except the
   WebView2 runtime that ships with Windows 10/11.
 - **Self-provisioning.** On first launch it downloads `yt-dlp.exe`, `ffmpeg.exe`, and
-  `ffprobe.exe` from GitHub into her AppData folder and shows a Hebrew progress screen.
+  `ffprobe.exe` from GitHub into `%LOCALAPPDATA%` and shows a Hebrew progress screen.
   Every later launch runs `yt-dlp -U` silently in the background so site changes keep working.
 - **Clipboard aware.** A background watcher fills the link box whenever a URL is copied. It
-  never starts a download on its own; she always clicks.
+  never starts a download on its own.
 - **Video or audio.** Video mode downloads best video plus best audio merged into mp4. Audio
   mode extracts mp3 at best quality with cover art and metadata embedded.
 - **Sequential queue** with per-row cancel, retry, and "open folder" (opens Explorer with the
   file selected). Duplicate links are refused. Closing with active downloads asks first.
 - **Cloudflare handling.** Generic sites are fetched with browser impersonation, and any 403 or
   bot challenge triggers one automatic retry with full Chrome impersonation.
-- **Settings screen** (aimed at the maintainer, still in Hebrew): download folder, H.264
-  compatibility mode, yt-dlp version with check-for-update, and reinstall tools.
+- **Settings screen:** download folder, H.264 compatibility mode, yt-dlp version with
+  check-for-update, and reinstall tools.
 - **Every string in one file.** All Hebrew lives in `src/strings/he.json`.
 
-## Installing it on her PC
+## Installing
 
 1. Build or download `MomsVideoDownloader.exe` (see [Releasing](#releasing-a-new-build)).
-2. Copy the exe anywhere, for example `C:\Users\<her>\MomsVideoDownloader\`, and put a
+2. Copy the exe anywhere, for example `C:\Users\<user>\MomsVideoDownloader\`, and put a
    shortcut on the desktop.
 3. First launch: Windows SmartScreen warns once because the exe is unsigned. Click
    "More info", then "Run anyway". It does not recur.
 4. The app shows the setup screen and downloads about 100 MB of tools. Wait for it to finish.
-5. Done. Updates to the app itself are you copying a new exe over the old one.
+5. To update the app, copy a new exe over the old one.
 
 If the app shows a message box about WebView2 instead of opening, install the
 [WebView2 Evergreen runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703). Windows 11 and
@@ -116,8 +114,7 @@ The exe is unsigned by design. Code signing costs money and this is a personal a
 ## Building it under another name
 
 The name lives in one place, `productName` in `src-tauri/tauri.conf.json` ("Mom's Video
-Downloader"). To give someone else a copy that feels like their own, build it under their name
-without editing any file:
+Downloader"). To build a copy under a different name without editing any file:
 
 ```bash
 pnpm release -Name "Grandma's Video Downloader"
@@ -162,8 +159,7 @@ is not modified.
 │       ├── process_tree.rs     Job object that lets cancel kill yt-dlp and its children
 │       └── clipboard.rs        Clipboard polling thread
 ├── scripts/release.ps1         Build + zip, optionally under another name (-Name)
-├── docs/icon.png               Icon source (1024px+ PNG)
-└── docs/superpowers/           Design spec and implementation plan (history)
+└── docs/icon.png               Icon source (1024px+ PNG)
 ```
 
 ## How it works
@@ -273,8 +269,7 @@ missing pieces are downloaded.
 | A second window opens | Single-instance plugin not registered first in `lib.rs`. |
 | Cancel does nothing and the download finishes anyway | Only the top `yt-dlp.exe` was killed. The job object in `process_tree.rs` must be created right after spawn and terminated on cancel. |
 
-The failed-row "technical details" expander shows yt-dlp's raw stderr. Ask her to read it to
-you, or take a screenshot.
+The failed-row "technical details" expander shows yt-dlp's raw stderr.
 
 ## Known limits
 
@@ -285,11 +280,3 @@ you, or take a screenshot.
 - The background yt-dlp update has no timeout; a hung GitHub call only affects the Settings
   "check update" button if pressed at the same time.
 - The setup screen and all downloads require internet at that moment; nothing is bundled.
-
-## Design history
-
-`docs/superpowers/specs/2026-09-15-moms-video-downloader-design.md` is the approved design and
-`docs/superpowers/plans/2026-09-15-moms-video-downloader.md` the task-by-task plan it was
-built from. The spec's "Post-implementation changes" section lists everything that changed
-after the plan was executed (renames, redesign, encoding fixes, impersonation retry, cancel fix). Read the
-spec first when you come back to this; it explains why things are the way they are.
