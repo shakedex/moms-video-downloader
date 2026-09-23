@@ -1,4 +1,5 @@
 import { ask } from "@tauri-apps/plugin-dialog";
+import { getName } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./api";
 import { t } from "./strings/t";
@@ -49,7 +50,15 @@ function buildTitlebar() {
   const title = document.createElement("span");
   title.className = "titlebar-title";
   title.dir = "ltr";
+  // app_title is the fallback; the build's productName (scripts/release.ps1 -Name) wins.
   title.textContent = t("app_title");
+  void getName()
+    .then((name) => {
+      if (!name) return;
+      title.textContent = name;
+      document.title = name;
+    })
+    .catch(() => {});
   brand.append(logo, title);
 
   const actions = document.createElement("div");

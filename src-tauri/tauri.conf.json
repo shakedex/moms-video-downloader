@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Lipszyc Video Downloader",
-  "mainBinaryName": "LipszycVideoDownloader",
+  "productName": "Mom’s Video Downloader",
+  "mainBinaryName": "MomsVideoDownloader",
   "version": "0.1.0",
-  "identifier": "com.lipszyc.videodownloader",
+  "identifier": "com.videodownloader.momsvideodownloader",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "Lipszyc Video Downloader",
+        "title": "Mom’s Video Downloader",
         "label": "main",
         "width": 720,
         "height": 680,

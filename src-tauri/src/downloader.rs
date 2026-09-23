@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
@@ -7,6 +8,7 @@ use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 
+use crate::process_tree::ProcessTree;
 use crate::{paths, settings};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,11 +45,26 @@ struct Inner {
     worker_active: bool,
 }
 
+/// The job being worked on, from before its first attempt until its final event. Each attempt
+/// fills `child` and `tree` while its yt-dlp runs.
 struct Running {
     job: Job,
     title: Option<String>,
     child: Option<Child>,
+    tree: Option<ProcessTree>,
     cancelled: bool,
+}
+
+impl Running {
+    /// Kills yt-dlp and everything it started. `child` alone is only the fallback when the job
+    /// object could not be set up, since killing it leaves yt-dlp's real worker running.
+    fn kill(&mut self) {
+        if let Some(t) = &self.tree {
+            t.kill();
+        } else if let Some(c) = self.child.as_mut() {
+            let _ = c.start_kill();
+        }
+    }
 }
 
 pub fn build_args(
@@ -170,7 +187,16 @@ struct FailedEv { id: u32, code: String, details: String }
 #[serde(rename_all = "camelCase")]
 struct IdEv { id: u32 }
 
-fn cleanup_partials(download_dir: &Path, title: Option<&str>) {
+fn dir_names(dir: &Path) -> HashSet<OsString> {
+    std::fs::read_dir(dir)
+        .map(|entries| entries.flatten().map(|e| e.file_name()).collect())
+        .unwrap_or_default()
+}
+
+/// Deletes what a cancelled job left in the download folder: files that were not in `before`
+/// and whose name contains the job's title. That covers `.part`/`.ytdl` files, per-format
+/// pieces like `.f137.mp4`, ffmpeg's `.temp` output, and a file finished just as cancel hit.
+fn cleanup_partials(download_dir: &Path, before: &HashSet<OsString>, title: Option<&str>) {
     let Some(title) = title else { return };
     let needle: String = title
         .chars()
@@ -181,21 +207,33 @@ fn cleanup_partials(download_dir: &Path, title: Option<&str>) {
     if needle.is_empty() { return; }
     let Ok(entries) = std::fs::read_dir(download_dir) else { return };
     for e in entries.flatten() {
-        let name = e.file_name().to_string_lossy().to_string();
-        let lower = name.to_lowercase();
-        let is_partial = lower.ends_with(".part") || lower.ends_with(".ytdl");
-        let stem: String = lower.chars().filter(|c| c.is_alphanumeric()).collect();
-        if is_partial && stem.contains(&needle) {
+        let name = e.file_name();
+        if before.contains(&name) || !e.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let stem: String = name
+            .to_string_lossy()
+            .to_lowercase()
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .collect();
+        if stem.contains(&needle) {
             let _ = std::fs::remove_file(e.path());
         }
     }
 }
 
-/// Runs one yt-dlp attempt for `job` (spawn, stream stdout/stderr, wait), registering it as the
-/// live `Running` job so `cancel_download` can kill it. Returns
-/// `(exit_success, stderr_text, final_path, cancelled)` for this single attempt; it does not emit
-/// the job's final outcome event (done/failed/cancelled) — the caller does that once, after
-/// possibly retrying with impersonation.
+struct Attempt {
+    ok: bool,
+    stderr: String,
+    final_path: Option<String>,
+    cancelled: bool,
+}
+
+/// Runs one yt-dlp attempt for `job` (spawn, stream stdout/stderr, wait), attaching the process
+/// to the job's `Running` entry so `cancel_download` can kill it. When cancelled, it returns
+/// only after the whole process tree is gone. It does not emit the job's final event; the
+/// caller does that once, after possibly retrying with impersonation.
 async fn run_attempt(
     app: &AppHandle,
     inner: &Arc<Mutex<Inner>>,
@@ -205,7 +243,7 @@ async fn run_attempt(
     dl: &Path,
     compat: bool,
     impersonate: bool,
-) -> (bool, String, Option<String>, bool) {
+) -> Attempt {
     let args = build_args(job.mode, compat, bin, dl, impersonate, &job.url);
     let child = Command::new(exe)
         .args(&args)
@@ -218,13 +256,21 @@ async fn run_attempt(
         .spawn();
     let mut child = match child {
         Ok(c) => c,
-        Err(_) => return (false, String::new(), None, false),
+        Err(_) => return Attempt { ok: false, stderr: String::new(), final_path: None, cancelled: false },
     };
+    let tree = ProcessTree::adopt(&child);
     let stdout = child.stdout.take().expect("stdout");
     let stderr = child.stderr.take().expect("stderr");
     {
         let mut g = inner.lock().unwrap();
-        g.running = Some(Running { job: job.clone(), title: None, child: Some(child), cancelled: false });
+        if let Some(r) = g.running.as_mut() {
+            r.child = Some(child);
+            r.tree = tree;
+            // Cancel pressed between the two attempts.
+            if r.cancelled {
+                r.kill();
+            }
+        }
     }
 
     let stderr_task = tokio::spawn(async move {
@@ -261,25 +307,24 @@ async fn run_attempt(
     }
 
     let stderr_text = stderr_task.await.unwrap_or_default();
-    let (mut child_opt, cancelled, title) = {
+    let (child_opt, tree, cancelled) = {
         let mut g = inner.lock().unwrap();
-        let r = g.running.take();
-        match r {
-            Some(r) => (r.child, r.cancelled, r.title),
-            None => (None, false, None),
+        match g.running.as_mut() {
+            Some(r) => (r.child.take(), r.tree.take(), r.cancelled),
+            None => (None, None, false),
         }
     };
-    let status = match child_opt.as_mut() {
-        Some(c) => c.wait().await.ok(),
+    let status = match child_opt {
+        Some(mut c) => c.wait().await.ok(),
         None => None,
     };
-
     if cancelled {
-        cleanup_partials(dl, title.as_deref());
-        return (false, stderr_text, final_path, true);
+        if let Some(t) = &tree {
+            t.wait_until_empty().await;
+        }
     }
-    let ok = status.map(|s| s.success()).unwrap_or(false);
-    (ok, stderr_text, final_path, false)
+    let ok = !cancelled && status.map(|s| s.success()).unwrap_or(false);
+    Attempt { ok, stderr: stderr_text, final_path, cancelled }
 }
 
 async fn run_job(app: AppHandle, inner: Arc<Mutex<Inner>>, job: Job) {
@@ -292,31 +337,35 @@ async fn run_job(app: AppHandle, inner: Arc<Mutex<Inner>>, job: Job) {
         return;
     }
 
-    let (mut ok, mut stderr_text, mut final_path, mut cancelled) =
-        run_attempt(&app, &inner, &job, &exe, &bin, &dl, s.compat_mode, false).await;
+    {
+        let mut g = inner.lock().unwrap();
+        g.running = Some(Running { job: job.clone(), title: None, child: None, tree: None, cancelled: false });
+    }
+    let before = dir_names(&dl);
 
-    if !cancelled && !ok && needs_impersonation_retry(&stderr_text) {
+    let mut attempt = run_attempt(&app, &inner, &job, &exe, &bin, &dl, s.compat_mode, false).await;
+    if !attempt.cancelled && !attempt.ok && needs_impersonation_retry(&attempt.stderr) {
         let _ = app.emit(
             "job-progress",
             ProgressEv { id: job.id, percent: 0.0, eta: "".into(), status: "downloading".into() },
         );
-        let (ok2, stderr2, path2, cancelled2) =
-            run_attempt(&app, &inner, &job, &exe, &bin, &dl, s.compat_mode, true).await;
-        ok = ok2;
-        stderr_text = stderr2;
-        final_path = path2;
-        cancelled = cancelled2;
+        attempt = run_attempt(&app, &inner, &job, &exe, &bin, &dl, s.compat_mode, true).await;
     }
 
-    if cancelled {
-        let _ = app.emit("job-cancelled", IdEv { id: job.id });
-        return;
+    // `running` stays set until cleanup is done; `cancel_all` waits on it before the window closes.
+    if attempt.cancelled {
+        let title = inner.lock().unwrap().running.as_ref().and_then(|r| r.title.clone());
+        cleanup_partials(&dl, &before, title.as_deref());
     }
-    if ok {
-        let _ = app.emit("job-done", DoneEv { id: job.id, path: final_path });
+    inner.lock().unwrap().running = None;
+
+    if attempt.cancelled {
+        let _ = app.emit("job-cancelled", IdEv { id: job.id });
+    } else if attempt.ok {
+        let _ = app.emit("job-done", DoneEv { id: job.id, path: attempt.final_path });
     } else {
-        let code = classify_error(&stderr_text).to_string();
-        let _ = app.emit("job-failed", FailedEv { id: job.id, code, details: stderr_text });
+        let code = classify_error(&attempt.stderr).to_string();
+        let _ = app.emit("job-failed", FailedEv { id: job.id, code, details: attempt.stderr });
     }
 }
 
@@ -381,9 +430,7 @@ pub fn cancel_download(app: AppHandle, state: State<'_, DownloaderState>, id: u3
     if let Some(r) = g.running.as_mut() {
         if r.job.id == id {
             r.cancelled = true;
-            if let Some(c) = r.child.as_mut() {
-                let _ = c.start_kill();
-            }
+            r.kill();
         }
     }
 }

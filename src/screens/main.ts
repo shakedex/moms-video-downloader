@@ -143,7 +143,10 @@ function renderActions(row: JobRow) {
   row.actions.replaceChildren();
   if (row.state === "queued" || row.state === "downloading" || row.state === "processing") {
     const cancel = actionButton(t("cancel"), "cancel", "btn-danger");
-    cancel.addEventListener("click", () => void api.cancel(row.id));
+    cancel.addEventListener("click", () => {
+      cancel.disabled = true;
+      void api.cancel(row.id);
+    });
     row.actions.append(cancel);
   } else if (row.state === "done") {
     const open = actionButton(t("open_folder"), "folderOpen", "btn-ok");

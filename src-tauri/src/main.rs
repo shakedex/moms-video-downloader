@@ -21,17 +21,18 @@ fn webview2_present() -> bool {
 }
 
 fn main() {
+    let context = moms_video_downloader_lib::context();
     if !webview2_present() {
-        let msg = serde_json::from_str::<serde_json::Value>(STRINGS)
-            .ok()
-            .and_then(|v| v.get("webview2_missing")?.as_str().map(String::from))
-            .unwrap_or_else(|| "WebView2 runtime is missing.".to_string());
+        let strings = serde_json::from_str::<serde_json::Value>(STRINGS).ok();
+        let string = |key: &str| strings.as_ref()?.get(key)?.as_str().map(String::from);
+        let msg = string("webview2_missing").unwrap_or_else(|| "WebView2 runtime is missing.".to_string());
+        let title = context.config().product_name.clone().or_else(|| string("app_title")).unwrap_or_default();
         rfd::MessageDialog::new()
-            .set_title("Lipszyc Video Downloader")
+            .set_title(title)
             .set_description(msg)
             .set_level(rfd::MessageLevel::Error)
             .show();
         return;
     }
-    lipszyc_video_downloader_lib::run();
+    moms_video_downloader_lib::run(context);
 }
