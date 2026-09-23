@@ -1,6 +1,6 @@
 [package]
 name = "moms-video-downloader"
-version = "0.1.0"
+version = "0.2.0"
 description = "Mom's Video Downloader"
 authors = ["Shaked"]
 edition = "2021"
